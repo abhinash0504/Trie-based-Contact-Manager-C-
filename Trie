@@ -1,0 +1,166 @@
+#include <iostream>
+#include <map>
+#include <vector>
+#include <string>
+#include <fstream>
+using namespace std;
+
+// Trie Node definition
+struct TrieNode {
+    map<char, TrieNode*> children;
+    bool isEndOfWord;
+    TrieNode() : isEndOfWord(false) {}
+};
+
+// Trie Class
+class Trie {
+private:
+    TrieNode* root;
+
+    void listAllContactsHelper(TrieNode* node, string prefix, vector<string>& results) {
+        if (node->isEndOfWord)
+            results.push_back(prefix);
+        for (auto& child : node->children)
+            listAllContactsHelper(child.second, prefix + child.first, results);
+    }
+
+    void freeMemory(TrieNode* node) {
+        for (auto& child : node->children)
+            freeMemory(child.second);
+        delete node;
+    }
+
+public:
+    Trie() { root = new TrieNode(); }
+
+    ~Trie() { freeMemory(root); } // Destructor to avoid memory leaks
+
+    void insert(const string& word) {
+        TrieNode* current = root;
+        for (char c : word) {
+            if (!current->children[c])
+                current->children[c] = new TrieNode();
+            current = current->children[c];
+        }
+        current->isEndOfWord = true;
+    }
+
+    bool search(const string& word) {
+        TrieNode* current = root;
+        for (char c : word) {
+            if (!current->children[c])
+                return false;
+            current = current->children[c];
+        }
+        return current->isEndOfWord;
+    }
+
+    vector<string> startsWith(const string& prefix) {
+        vector<string> results;
+        TrieNode* current = root;
+        for (char c : prefix) {
+            if (!current->children[c])
+                return results;
+            current = current->children[c];
+        }
+        listAllContactsHelper(current, prefix, results);
+        return results;
+    }
+};
+
+// Save contacts to file
+void saveContacts(const vector<string>& contacts, const string& filename) {
+    ofstream outFile(filename);
+    for (const string& contact : contacts)
+        outFile << contact << endl;
+    outFile.close();
+}
+
+// Load contacts from file
+vector<string> loadContacts(const string& filename) {
+    vector<string> contacts;
+    ifstream inFile(filename);
+    string contact;
+    while (getline(inFile, contact)) {
+        if (!contact.empty())
+            contacts.push_back(contact);
+    }
+    return contacts;
+}
+
+// Main Menu
+int main() {
+    Trie contactTrie;
+    vector<string> contacts = loadContacts("contacts.txt");
+
+    // Insert loaded contacts into Trie
+    for (const string& name : contacts)
+        contactTrie.insert(name);
+
+    int choice;
+    string name;
+    do {
+        cout << "\n--- Contact Manager (Trie) ---\n";
+        cout << "1. Add Contact\n";
+        cout << "2. Search Contact\n";
+        cout << "3. Search by Prefix\n";
+        cout << "4. List All Contacts\n";
+        cout << "5. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                cout << "Enter name to add: ";
+                cin >> name;
+                contactTrie.insert(name);
+                contacts.push_back(name);
+                cout << "Contact added!\n";
+                break;
+
+            case 2:
+                cout << "Enter name to search: ";
+                cin >> name;
+                cout << (contactTrie.search(name) ? "Found!\n" : "Not Found!\n");
+                break;
+
+            case 3:
+                cout << "Enter prefix: ";
+                cin >> name;
+                {
+                    vector<string> results = contactTrie.startsWith(name);
+                    if (results.empty())
+                        cout << "No contacts found with this prefix.\n";
+                    else {
+                        cout << "Contacts:\n";
+                        for (const string& r : results)
+                            cout << r << endl;
+                    }
+                }
+                break;
+
+            case 4:
+                {
+                    vector<string> results = contactTrie.startsWith("");
+                    if (results.empty())
+                        cout << "No contacts available.\n";
+                    else {
+                        cout << "All Contacts:\n";
+                        for (const string& r : results)
+                            cout << r << endl;
+                    }
+                }
+                break;
+
+            case 5:
+                saveContacts(contacts, "contacts.txt");
+                cout << "Contacts saved. Exiting...\n";
+                break;
+
+            default:
+                cout << "Invalid choice. Try again.\n";
+        }
+    } while (choice != 5);
+
+    return 0;
+}
